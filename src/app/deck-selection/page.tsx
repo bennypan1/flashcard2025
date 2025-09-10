@@ -1,18 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function DeckSelectionPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <DeckSelection />
-        </Suspense>
-    );
-}
-
-function DeckSelection() {
+export default function DeckSelection() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const mode = searchParams.get("mode"); // "session" or "editor"
