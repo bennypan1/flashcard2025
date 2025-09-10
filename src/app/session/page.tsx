@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface Card {
@@ -29,12 +29,17 @@ export default function SessionPage() {
     const searchParams = useSearchParams();
     const deckName = searchParams.get("deck");
 
+    // --- State & refs ---
     const [cards, setCards] = useState<Card[]>([]);
     const [current, setCurrent] = useState(0);
     const [step, setStep] = useState<"english" | "pinyin" | "character">("english");
     const [deckExists, setDeckExists] = useState(true);
 
-    // Load deck
+    const spacePressed = useRef(false);
+    const leftPressed = useRef(false);
+    const rightPressed = useRef(false);
+
+    // --- Load deck ---
     useEffect(() => {
         const saved = localStorage.getItem("flashcardDecks");
         const decks: Deck[] = saved ? JSON.parse(saved) : [];
@@ -46,44 +51,10 @@ export default function SessionPage() {
         }
 
         setDeckExists(true);
-
-        if (deck.cards.length === 0) {
-            setCards([]);
-        } else {
-            setCards(shuffleArray(deck.cards));
-        }
+        setCards(deck.cards.length === 0 ? [] : shuffleArray(deck.cards));
     }, [deckName]);
 
-    if (!deckName || !deckExists)
-        return (
-            <div className="text-center mt-6">
-                <p className="text-red-500">This deck does not exist.</p>
-                <button
-                    onClick={() => router.push("/deck-selection?mode=session")}
-                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                >
-                    Go Back
-                </button>
-            </div>
-        );
-
-    if (cards.length === 0)
-        return (
-            <div className="text-center mt-6">
-                <p className="text-red-500">
-                    This deck has no cards. Please go add some in the editor.
-                </p>
-                <button
-                    onClick={() => router.push(`/editor?deck=${encodeURIComponent(deckName)}`)}
-                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
-                >
-                    Edit Deck
-                </button>
-            </div>
-        );
-
-    const card = cards[current];
-
+    // --- Navigation functions ---
     const nextStep = () => {
         if (step === "english") setStep("pinyin");
         else if (step === "pinyin") setStep("character");
@@ -102,8 +73,73 @@ export default function SessionPage() {
         }
     };
 
-    return (
-        <main className="flex flex-col items-center justify-center min-h-screen p-6 relative">
+    // --- Keyboard navigation ---
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowRight" && !rightPressed.current) {
+                if (!(current === cards.length - 1 && step === "character")) nextStep();
+                rightPressed.current = true;
+            }
+            if (e.key === "ArrowLeft" && !leftPressed.current) {
+                if (!(current === 0 && step === "english")) prevStep();
+                leftPressed.current = true;
+            }
+            if (e.code === "Space" && !spacePressed.current) {
+                e.preventDefault();
+                if (!(current === cards.length - 1 && step === "character")) nextStep();
+                spacePressed.current = true;
+            }
+        };
+
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === "ArrowRight") rightPressed.current = false;
+            if (e.key === "ArrowLeft") leftPressed.current = false;
+            if (e.code === "Space") spacePressed.current = false;
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, [current, step, cards]);
+
+    // --- Conditional rendering ---
+    let content;
+
+    if (!deckName || !deckExists) {
+        content = (
+            <div className="text-center mt-6">
+                <p className="text-red-500">This deck does not exist.</p>
+                <button
+                    onClick={() => router.push("/deck-selection?mode=session")}
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                >
+                    Go Back
+                </button>
+            </div>
+        );
+    } else if (cards.length === 0) {
+        content = (
+            <div className="text-center mt-6">
+                <p className="text-red-500">
+                    This deck has no cards. Please go add some in the editor.
+                </p>
+                <button
+                    onClick={() =>
+                        router.push(`/editor?deck=${encodeURIComponent(deckName)}`)
+                    }
+                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                >
+                    Edit Deck
+                </button>
+            </div>
+        );
+    } else {
+        const card = cards[current];
+        content = (
             <div className="relative w-full max-w-md p-6 rounded-xl shadow-lg bg-white dark:bg-neutral-900 text-center">
                 <h2 className="text-2xl font-bold mb-4">Deck: {deckName}</h2>
 
@@ -136,6 +172,12 @@ export default function SessionPage() {
                     </button>
                 )}
             </div>
+        );
+    }
+
+    return (
+        <main className="flex flex-col items-center justify-center min-h-screen p-6 relative">
+            {content}
 
             {/* Back to Deck Selection button */}
             <button
