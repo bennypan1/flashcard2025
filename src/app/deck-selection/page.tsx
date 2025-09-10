@@ -1,9 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function DeckSelection() {
+export default function DeckSelectionPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <DeckSelection />
+        </Suspense>
+    );
+}
+
+function DeckSelection() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const mode = searchParams.get("mode"); // "session" or "editor"
@@ -56,8 +65,8 @@ export default function DeckSelection() {
                         {/* Gray/blue box for deck selection */}
                         <button
                             className={`flex-1 text-left px-4 py-2 rounded ${selectedDeck === deck.name
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-gray-200 text-black"
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 text-black"
                                 }`}
                             onClick={() => setSelectedDeck(deck.name)}
                         >
